@@ -1,7 +1,7 @@
 from unittest import TestCase
 
 from app import app
-from models import db, User, Post
+from models import db, User, Post, Tag, PostTag
 
 # Use test database and don't clutter test with SQL
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql:///blogly_test'
@@ -24,6 +24,7 @@ class BloglyViewTestCase(TestCase):
 
         User.query.delete()
         Post.query.delete()
+        Tag.query.delete()
 
         user = User(first_name="TestUser", last_name="TestLastName", image_url="https://www.freeiconspng.com/uploads/icon-user-blue-symbol-people-person-generic--public-domain--21.png")
 
@@ -38,6 +39,13 @@ class BloglyViewTestCase(TestCase):
         db.session.commit()
 
         self.post_id = post.id
+
+        tag = Tag(name="TestTag")
+
+        db.session.add(tag)
+        db.session.commit()
+        
+        self.tag_id = tag.id
 
 
 
@@ -142,11 +150,11 @@ class BloglyViewTestCase(TestCase):
             html = resp.get_data(as_text=True)
 
             self.assertEqual(resp.status_code, 200)
-            self.assertIn('<h1>Add Post for TestUser TestLastName</h1>', html)
+            self.assertIn('<h1>Add Post for TestUser  TestLastName</h1>', html)
     
 
     def test_create_post(self):
-        """ Check if user is redirected to user details page after creatign post """
+        """ Check if user is redirected to user details page after creating post """
         with app.test_client() as client:
             d = {"title": "Test2Post", "content": "Just Posting", "user_id": "{self.user_id}"}
             resp = client.post(f"/users/{self.user_id}/posts/new", data=d, follow_redirects=True)
@@ -156,7 +164,7 @@ class BloglyViewTestCase(TestCase):
             self.assertIn('<h1>TestUser  TestLastName</h1>', html)
 
 
-    def test_show_post(self):
+    def test_show_post_details(self):
         """ Check if new post is displayed on the post details page"""
         with app.test_client() as client:
             resp = client.get(f"/posts/{self.post_id}")
@@ -177,7 +185,7 @@ class BloglyViewTestCase(TestCase):
 
 
     def test_update_post(self):
-        """CHeck if user is redirected to post details page after editing the post"""
+        """Check if user is redirected to post details page after editing the post"""
         with app.test_client() as client:
             d = {"title": "Test3Post", "content": "Just Another Posting", "user_id": "{self.user_id}"}
             resp = client.post(f"/posts/{self.post_id}/edit", data=d, follow_redirects=True)
@@ -187,7 +195,7 @@ class BloglyViewTestCase(TestCase):
             self.assertIn('<h1>Test3Post</h1>', html)
 
     def test_delete_post(self):
-        """ Check id user is redirected to all users page after deleting post"""
+        """ Check if user is redirected to all users page after deleting post"""
         with app.test_client() as client:
             d = {"title": "Test3Post", "content": "Just Another Posting", "user_id": "{self.user_id}"}
             resp = client.post(f"/posts/{self.post_id}/delete", data=d, follow_redirects=True)
@@ -195,3 +203,82 @@ class BloglyViewTestCase(TestCase):
 
             self.assertEqual(resp.status_code, 200)
             self.assertIn('<h1>TestUser  TestLastName</h1>', html)
+
+###########################################################################
+
+# Tests for tags view functions
+
+    def test_show_all_tags(self):
+        """Check if list of all tags is displayed """
+        with app.test_client() as client:
+            resp = client.get("/tags")
+            html = resp.get_data(as_text=True)
+
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn('<h1>All Tags</h1>', html)
+
+    
+    def test_show_tag(self):
+        """ Check if specific tag is displayed on the tag details page"""
+        with app.test_client() as client:
+            resp = client.get(f"/tags/{self.tag_id}")
+            html = resp.get_data(as_text=True)
+
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn('<h1>TestTag</h1>', html) 
+
+
+    def test_show_create_tag_form(self):
+        """Check if form to create new tag is rendered"""
+    
+        with app.test_client() as client:
+            resp = client.get("/tags/new")
+            html = resp.get_data(as_text=True)
+
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn('<h1>Create a tag</h1>', html)
+
+
+    def test_create_tag(self):
+        """ Check if user is redirected to page listing all tags after creating tag """
+        with app.test_client() as client:
+            d = {"name":"Test2Tag"}
+            resp = client.post("/tags/new", data=d, follow_redirects=True)
+            html = resp.get_data(as_text=True)
+
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn('<h1>All Tags</h1>', html)
+
+
+
+    def test_show_edit_tag_form(self):
+        """Check if form to edit a specific form is rendered"""
+
+        with app.test_client() as client:
+            resp = client.get("/tags/{self.tag_id}/edit")
+            html = resp.get_data(as_text=True)
+
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn('<h1>Edit a Tag</h1>', html)
+
+
+    def test_edit_tag(self):
+        """Check if user is redirected to page listing all tags after editing the tag"""
+        with app.test_client() as client:
+            d = {"name":"Test2Tag"}
+            resp = client.post(f"/tags/{self.tag_id}/edit", data=d, follow_redirects=True)
+            html = resp.get_data(as_text=True)
+
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn('<h1>All Tags</h1>', html)
+
+
+    def test_delete_tag(self):
+        """ Check if user is redirected to page listing all tags after deleting tag"""
+        with app.test_client() as client:
+            d = {"name":"Test2Tag"}
+            resp = client.post(f"/tags/{self.tag_id}/delete", data=d, follow_redirects=True)
+            html = resp.get_data(as_text=True)
+
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn('<h1>All Tags</h1>', html)
